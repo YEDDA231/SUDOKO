@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sudoku</title>
+    <meta name="description" content="A calm Sudoku game in the browser. Notes, hints, undo, and three difficulties.">
+    <meta name="theme-color" content="#14110e">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Sudoku">
+    <meta property="og:title" content="Sudoku">
+    <meta property="og:description" content="A calm Sudoku game you can play in the browser.">
+    <meta property="og:type" content="website">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="manifest" href="site.webmanifest">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,560;0,9..144,700;1,9..144,500&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <main class="app">
+        <section class="panel" aria-label="Game menu">
+            <header class="brand">
+                <p class="eyebrow"><span class="mini-grid" aria-hidden="true"></span>Paper puzzle</p>
+                <h1>Sudoku</h1>
+                <p class="tagline">Fill every row, column, and box with the digits 1 through 9.</p>
+            </header>
+
+            <div class="stats">
+                <div class="stat">
+                    <span class="label">Time</span>
+                    <strong id="timer">00:00</strong>
+                </div>
+                <div class="stat">
+                    <span class="label">Lives</span>
+                    <span id="lives" class="lives" aria-label="3 lives remaining">
+                        <span></span><span></span><span></span>
+                    </span>
+                </div>
+                <div class="stat">
+                    <span class="label" id="bestLabel" title="Best time on medium">Best</span>
+                    <strong id="best">—</strong>
+                </div>
+            </div>
+
+            <div class="field">
+                <label for="difficulty">Difficulty</label>
+                <select id="difficulty">
+                    <option value="easy">Easy</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="hard">Hard</option>
+                </select>
+                <p id="difficultyHelp" class="help">Fewer clues. The everyday puzzle.</p>
+            </div>
+
+            <button type="button" id="newGame" class="btn primary">New game</button>
+
+            <div class="tools">
+                <button type="button" id="notesToggle" class="btn tool" aria-pressed="false" title="Toggle notes (N)">
+                    <span>Notes</span>
+                    <small id="notesState">Off</small>
+                </button>
+                <button type="button" id="undo" class="btn tool" title="Undo (U)">
+                    <span>Undo</span>
+                    <small>Step back</small>
+                </button>
+                <button type="button" id="hint" class="btn tool" title="Fill the selected cell (H)">
+                    <span>Hint</span>
+                    <small id="hintsLeft">3 left</small>
+                </button>
+                <button type="button" id="pause" class="btn tool" title="Pause (P)">
+                    <span id="pauseLabel">Pause</span>
+                    <small id="pauseHint">Hide grid</small>
+                </button>
+            </div>
+
+            <button type="button" id="check" class="check">Check progress</button>
+        </section>
+
+        <section class="sheet" id="sheet" aria-label="Puzzle">
+            <div class="board-frame" id="boardFrame">
+                <div id="board" class="board" role="grid" aria-label="Sudoku board"></div>
+                <div id="pauseOverlay" class="pause" hidden>
+                    <div class="pause-card">
+                        <p class="eyebrow">Take a breath</p>
+                        <h2>Paused</h2>
+                        <p>The timer is stopped and the grid is covered.</p>
+                        <button type="button" id="resume" class="btn primary">Resume</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="numbers" class="numbers" role="group" aria-label="Number pad">
+                <button type="button" class="num" data-number="1"><span class="digit">1</span><span class="sub"></span></button>
+                <button type="button" class="num" data-number="2"><span class="digit">2</span><span class="sub"></span></button>
+                <button type="button" class="num" data-number="3"><span class="digit">3</span><span class="sub"></span></button>
+                <button type="button" class="num" data-number="4"><span class="digit">4</span><span class="sub"></span></button>
+                <button type="button" class="num" data-number="5"><span class="digit">5</span><span class="sub"></span></button>
+                <button type="button" class="num" data-number="6"><span class="digit">6</span><span class="sub"></span></button>
+                <button type="button" class="num" data-number="7"><span class="digit">7</span><span class="sub"></span></button>
+                <button type="button" class="num" data-number="8"><span class="digit">8</span><span class="sub"></span></button>
+                <button type="button" class="num" data-number="9"><span class="digit">9</span><span class="sub"></span></button>
+                <button type="button" class="num erase" data-number="0" aria-label="Erase"><span class="digit">⌫</span><span class="sub">Erase</span></button>
+            </div>
+
+            <p id="message" class="message" role="status">Select an empty cell to begin.</p>
+            <p class="keys">Arrows move · 1–9 enter · N notes · U undo · P pause</p>
+
+            <noscript>
+                <p class="noscript">Turn on JavaScript to play this Sudoku game.</p>
+            </noscript>
+        </section>
+    </main>
+
+    <div id="overlay" class="overlay" hidden>
+        <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="overlayTitle">
+            <p class="eyebrow" id="overlayKicker"></p>
+            <h2 id="overlayTitle"></h2>
+            <p id="overlayText"></p>
+            <div class="overlay-actions">
+                <button type="button" id="overlayPrimary" class="btn primary"></button>
+                <button type="button" id="overlaySecondary" class="btn ghost" hidden></button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

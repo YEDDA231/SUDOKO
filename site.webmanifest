@@ -1,0 +1,17 @@
+{
+  "name": "Sudoku",
+  "short_name": "Sudoku",
+  "description": "A calm Sudoku game in the browser.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#14110e",
+  "theme_color": "#14110e",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
