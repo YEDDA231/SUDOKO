@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sudoku</title>
     <meta name="description" content="A Sudoku game in the browser. Notes, hints, undo, and three difficulties.">
-    <meta name="theme-color" content="#dd0031">
+    <meta name="theme-color" content="#241c17">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Sudoku">
     <meta property="og:title" content="Sudoku">
@@ -77,6 +77,7 @@
 
             <div class="tools">
                 <button type="button" id="undo" class="btn tool undo-tool" title="Undo (U)">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12.5 8c-2.65 0-5.05 1.04-6.9 2.7L3 8v9h9l-2.62-2.62A7.94 7.94 0 0 1 12.5 12c2.33 0 4.51.94 6.1 2.5l1.4-1.4A9.96 9.96 0 0 0 12.5 8z"/></svg>
                     <span>Undo</span>
                     <small id="undoHint">Try another idea</small>
                 </button>
@@ -124,7 +125,7 @@
             </div>
 
             <button type="button" id="undoPad" class="undo-pad" title="Undo the last move (U)">
-                <span class="undo-icon" aria-hidden="true">↩</span>
+                <svg class="undo-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12.5 8c-2.65 0-5.05 1.04-6.9 2.7L3 8v9h9l-2.62-2.62A7.94 7.94 0 0 1 12.5 12c2.33 0 4.51.94 6.1 2.5l1.4-1.4A9.96 9.96 0 0 0 12.5 8z"/></svg>
                 <span class="undo-copy">
                     <strong>Undo</strong>
                     <small id="undoPadHint">Step back and try another idea</small>

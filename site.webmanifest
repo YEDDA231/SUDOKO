@@ -4,8 +4,8 @@
   "description": "A calm Sudoku game in the browser.",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#fafafa",
-  "theme_color": "#dd0031",
+  "background_color": "#14110e",
+  "theme_color": "#241c17",
   "icons": [
     {
       "src": "favicon.svg",
