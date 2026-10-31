@@ -20,6 +20,7 @@
     let seconds = 0;
     let notesMode = false;
     let status = "idle";
+    let playerName = "";
     let activeDifficulty = "medium";
     let timerId = null;
     let overlayPrimaryHandler = () => {};
@@ -36,6 +37,9 @@
     let notesToggle;
     let notesState;
     let undoButton;
+    let undoHint;
+    let undoPad;
+    let undoPadHint;
     let hintButton;
     let hintsLeftElement;
     let pauseButton;
@@ -55,6 +59,19 @@
     let overlayText;
     let overlayPrimary;
     let overlaySecondary;
+    let dialog;
+    let congratsHero;
+    let heroName;
+    let ignField;
+    let ignInput;
+    let ignError;
+    let gateDifficulty;
+    let winStats;
+    let playerChip;
+    let playerAvatar;
+    let playerNameElement;
+    let toolbarPlayer;
+    let toolbarName;
 
     function blank(fill = 0) {
         return Array.from({ length: 9 }, () => Array(9).fill(fill));
@@ -342,6 +359,9 @@
         notesToggle = document.getElementById("notesToggle");
         notesState = document.getElementById("notesState");
         undoButton = document.getElementById("undo");
+        undoHint = document.getElementById("undoHint");
+        undoPad = document.getElementById("undoPad");
+        undoPadHint = document.getElementById("undoPadHint");
         hintButton = document.getElementById("hint");
         hintsLeftElement = document.getElementById("hintsLeft");
         pauseButton = document.getElementById("pause");
@@ -361,6 +381,19 @@
         overlayText = document.getElementById("overlayText");
         overlayPrimary = document.getElementById("overlayPrimary");
         overlaySecondary = document.getElementById("overlaySecondary");
+        dialog = document.getElementById("dialog");
+        congratsHero = document.getElementById("congratsHero");
+        heroName = document.getElementById("heroName");
+        ignField = document.getElementById("ignField");
+        ignInput = document.getElementById("ignInput");
+        ignError = document.getElementById("ignError");
+        gateDifficulty = document.getElementById("gateDifficulty");
+        winStats = document.getElementById("winStats");
+        playerChip = document.getElementById("playerChip");
+        playerAvatar = document.getElementById("playerAvatar");
+        playerNameElement = document.getElementById("playerName");
+        toolbarPlayer = document.getElementById("toolbarPlayer");
+        toolbarName = document.getElementById("toolbarName");
     }
 
     function buildBoard() {
@@ -514,7 +547,15 @@
         hintsLeftElement.textContent = hintsLeft === 1 ? "1 left" : `${hintsLeft} left`;
         hintButton.setAttribute("aria-label", `Hint, ${hintsLeft} left`);
         hintButton.disabled = status !== "playing" || hintsLeft <= 0;
-        undoButton.disabled = history.length === 0 || status === "won" || status === "revealed" || status === "busy";
+        const undoSteps = history.length;
+        const canUndo = undoSteps > 0 && status !== "won" && status !== "revealed" && status !== "busy" && status !== "gate";
+        const undoLabel = undoSteps === 0 ? "Undo, nothing to undo" : `Undo, ${undoSteps} ${undoSteps === 1 ? "step" : "steps"} saved`;
+        undoButton.disabled = !canUndo;
+        undoPad.disabled = !canUndo;
+        undoButton.setAttribute("aria-label", undoLabel);
+        undoPad.setAttribute("aria-label", undoLabel);
+        undoHint.textContent = undoSteps === 0 ? "Try another idea" : undoSteps === 1 ? "1 step saved" : `${undoSteps} steps saved`;
+        undoPadHint.textContent = undoSteps === 0 ? "Step back and try another idea" : undoSteps === 1 ? "1 step to rethink" : `${undoSteps} steps to rethink`;
         notesState.textContent = notesMode ? "On" : "Off";
         notesToggle.setAttribute("aria-pressed", notesMode ? "true" : "false");
         notesToggle.disabled = status !== "playing";
@@ -523,7 +564,7 @@
         pauseHint.textContent = status === "paused" ? "Show grid" : "Hide grid";
         checkButton.disabled = status !== "playing";
         newGameButton.disabled = status === "busy";
-        newGameButton.textContent = status === "busy" ? "Dealing…" : "New game";
+        newGameButton.textContent = status === "busy" ? "Dealing…" : playerName ? "New game" : "Start game";
         difficultyElement.disabled = status === "busy";
         sheet.classList.toggle("notes-on", notesMode);
         document.body.dataset.status = status;
@@ -545,7 +586,7 @@
     }
 
     function selectCell(index, shouldFocus) {
-        if (status === "busy" || status === "won" || status === "revealed") return;
+        if (status === "busy" || status === "won" || status === "revealed" || status === "gate") return;
         selectedCell = index;
         highlight();
         updatePad();
@@ -605,12 +646,60 @@
         return true;
     }
 
-    function showOverlay({ kicker, title, text, primary, secondary, onPrimary, onSecondary }) {
-        overlayKicker.textContent = kicker;
-        overlayTitle.textContent = title;
-        overlayText.textContent = text;
+    function fillWinStats() {
+        winStats.replaceChildren();
+        const items = [
+            ["Time", formatTime(seconds)],
+            ["Level", LEVEL_NAME[activeDifficulty] || activeDifficulty],
+            ["Lives", String(Math.max(0, 3 - mistakes))]
+        ];
+
+        items.forEach(([label, value]) => {
+            const chip = document.createElement("div");
+            chip.className = "chip";
+            const name = document.createElement("span");
+            name.textContent = label;
+            const strong = document.createElement("strong");
+            strong.textContent = value;
+            chip.append(name, strong);
+            winStats.appendChild(chip);
+        });
+    }
+
+    function showPlayer(name) {
+        playerName = name;
+        playerChip.hidden = false;
+        playerNameElement.textContent = name;
+        playerAvatar.textContent = Array.from(name)[0].toUpperCase();
+        toolbarPlayer.hidden = false;
+        toolbarName.textContent = name;
+    }
+
+    function showOverlay({ mode, kicker, title, text, primary, secondary, onPrimary, onSecondary }) {
+        const isWin = mode === "win";
+        const isGate = mode === "gate";
+
+        dialog.classList.toggle("is-congrats", isWin);
+        dialog.classList.toggle("is-gate", isGate);
+        dialog.setAttribute("aria-labelledby", isWin ? "heroTitle" : "overlayTitle");
+        congratsHero.hidden = !isWin;
+        overlayKicker.hidden = isWin;
+        overlayTitle.hidden = isWin;
+        winStats.hidden = !isWin;
+        ignField.hidden = !isGate;
+
+        overlayKicker.textContent = kicker || "";
+        overlayTitle.textContent = title || "";
+        overlayText.textContent = text || "";
         overlayPrimary.textContent = primary;
         overlayPrimaryHandler = onPrimary || (() => {});
+
+        if (isWin) {
+            heroName.textContent = playerName;
+            fillWinStats();
+        } else {
+            winStats.replaceChildren();
+        }
 
         if (secondary) {
             overlaySecondary.hidden = false;
@@ -622,7 +711,58 @@
         }
 
         overlay.hidden = false;
+
+        if (isGate) {
+            ignError.textContent = "";
+            ignInput.removeAttribute("aria-invalid");
+            gateDifficulty.value = DIFFICULTY_COPY[difficultyElement.value] ? difficultyElement.value : "medium";
+            const saved = readStorage("sudoku-ign");
+            if (!ignInput.value && saved) ignInput.value = saved;
+            ignInput.focus();
+            return;
+        }
+
         overlayPrimary.focus();
+    }
+
+    function openNameGate() {
+        status = playerName ? status : "gate";
+        showOverlay({
+            mode: "gate",
+            kicker: "Before you start",
+            title: "Choose your name",
+            text: "Enter the in-game name you want. Undo stays available the whole game, so you can step back and think.",
+            primary: "Start game",
+            onPrimary: submitName
+        });
+    }
+
+    function submitName() {
+        const name = ignInput.value.trim().replace(/\s+/g, " ");
+        if (!name) {
+            ignInput.setAttribute("aria-invalid", "true");
+            ignError.textContent = "Enter the name you want to play as.";
+            ignInput.focus();
+            return;
+        }
+
+        ignInput.removeAttribute("aria-invalid");
+        ignError.textContent = "";
+        difficultyElement.value = DIFFICULTY_COPY[gateDifficulty.value] ? gateDifficulty.value : "medium";
+        syncDifficultyHelp();
+        writeStorage("sudoku-ign", name);
+        showPlayer(name);
+        startGame();
+    }
+
+    function requestGame() {
+        if (status === "busy") return;
+        if (!playerName) {
+            openNameGate();
+            updateChrome();
+            return;
+        }
+        startGame();
     }
 
     function hideOverlay() {
@@ -681,7 +821,7 @@
         selectedCell = findNextEmpty(0);
         status = "playing";
         paintAll();
-        setMessage("Select a cell, then enter a digit. A wrong digit costs a life.");
+        setMessage("Select a cell, then enter a digit. Use Undo any time you want to rethink.");
         startTimer();
     }
 
@@ -717,7 +857,7 @@
     }
 
     function undo() {
-        if (status === "busy" || status === "won" || status === "revealed") return;
+        if (status === "busy" || status === "won" || status === "revealed" || status === "gate") return;
         const previous = history.pop();
         if (!previous) {
             setMessage("Nothing to undo.");
@@ -737,7 +877,7 @@
         }
 
         paintAll();
-        setMessage("Undone.");
+        setMessage("Undone. Take another look.");
     }
 
     function win() {
@@ -755,12 +895,14 @@
 
         sheet.classList.add("celebrate");
         updateChrome();
+        setMessage(`Congratulations, ${playerName}. The grid is complete.`);
         showOverlay({
-            kicker: "Solved",
-            title: "The grid is complete",
+            mode: "win",
+            kicker: "Puzzle complete",
+            title: "Congratulations",
             text,
             primary: "Play again",
-            onPrimary: startGame
+            onPrimary: requestGame
         });
     }
 
@@ -774,7 +916,7 @@
             text: "Three wrong digits closes the round. Study the finished grid, or deal a new one.",
             primary: "New game",
             secondary: "Show solution",
-            onPrimary: startGame,
+            onPrimary: requestGame,
             onSecondary: revealSolution
         });
     }
@@ -1042,7 +1184,8 @@
 
     function onDifficultyChange() {
         syncDifficultyHelp();
-        if (status === "busy") return;
+        if (!ignField.hidden) gateDifficulty.value = difficultyElement.value;
+        if (status === "gate" || status === "busy") return;
 
         const untouched = history.length === 0 && seconds < 2 &&
             (status === "playing" || status === "paused");
@@ -1066,10 +1209,20 @@
         if (savedLevel && DIFFICULTY_COPY[savedLevel]) difficultyElement.value = savedLevel;
         syncDifficultyHelp();
 
-        newGameButton.addEventListener("click", startGame);
+        newGameButton.addEventListener("click", requestGame);
         difficultyElement.addEventListener("change", onDifficultyChange);
+        gateDifficulty.addEventListener("change", () => {
+            difficultyElement.value = gateDifficulty.value;
+            syncDifficultyHelp();
+        });
+        ignInput.addEventListener("keydown", (event) => {
+            if (event.key !== "Enter") return;
+            event.preventDefault();
+            submitName();
+        });
         notesToggle.addEventListener("click", toggleNotes);
         undoButton.addEventListener("click", undo);
+        undoPad.addEventListener("click", undo);
         hintButton.addEventListener("click", giveHint);
         pauseButton.addEventListener("click", togglePause);
         resumeButton.addEventListener("click", resume);
@@ -1082,7 +1235,10 @@
         overlayPrimary.addEventListener("click", () => overlayPrimaryHandler());
         overlaySecondary.addEventListener("click", () => overlaySecondaryHandler());
         document.addEventListener("keydown", onKey);
-        startGame();
+        status = "gate";
+        paintAll();
+        setMessage("Enter your name to deal the first puzzle.");
+        openNameGate();
     }
 
     if (typeof document === "undefined") {

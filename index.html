@@ -4,28 +4,47 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sudoku</title>
-    <meta name="description" content="A calm Sudoku game in the browser. Notes, hints, undo, and three difficulties.">
-    <meta name="theme-color" content="#14110e">
+    <meta name="description" content="A Sudoku game in the browser. Notes, hints, undo, and three difficulties.">
+    <meta name="theme-color" content="#dd0031">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Sudoku">
     <meta property="og:title" content="Sudoku">
-    <meta property="og:description" content="A calm Sudoku game you can play in the browser.">
+    <meta property="og:description" content="A Sudoku game you can play in the browser.">
     <meta property="og:type" content="website">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="manifest" href="site.webmanifest">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,560;0,9..144,700;1,9..144,500&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <header class="toolbar">
+        <svg class="logo-mark" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="2" y="2" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M9.3 2v20M14.7 2v20M2 9.3h20M2 14.7h20" stroke="currentColor" stroke-width="1.2"/>
+        </svg>
+        <h1 class="toolbar-title">Sudoku</h1>
+        <p class="toolbar-player" id="toolbarPlayer" hidden>
+            <span>Playing as</span>
+            <strong id="toolbarName"></strong>
+        </p>
+    </header>
+
     <main class="app">
         <section class="panel" aria-label="Game menu">
             <header class="brand">
-                <p class="eyebrow"><span class="mini-grid" aria-hidden="true"></span>Paper puzzle</p>
-                <h1>Sudoku</h1>
-                <p class="tagline">Fill every row, column, and box with the digits 1 through 9.</p>
+                <p class="eyebrow">Number grid</p>
+                <p class="tagline">Fill every row, column, and box. Undo any move while you think it through.</p>
             </header>
+
+            <div class="player-chip" id="playerChip" hidden>
+                <span class="avatar" id="playerAvatar" aria-hidden="true"></span>
+                <span class="player-meta">
+                    <span class="label">Player</span>
+                    <strong id="playerName"></strong>
+                </span>
+            </div>
 
             <div class="stats">
                 <div class="stat">
@@ -57,13 +76,13 @@
             <button type="button" id="newGame" class="btn primary">New game</button>
 
             <div class="tools">
+                <button type="button" id="undo" class="btn tool undo-tool" title="Undo (U)">
+                    <span>Undo</span>
+                    <small id="undoHint">Try another idea</small>
+                </button>
                 <button type="button" id="notesToggle" class="btn tool" aria-pressed="false" title="Toggle notes (N)">
                     <span>Notes</span>
                     <small id="notesState">Off</small>
-                </button>
-                <button type="button" id="undo" class="btn tool" title="Undo (U)">
-                    <span>Undo</span>
-                    <small>Step back</small>
                 </button>
                 <button type="button" id="hint" class="btn tool" title="Fill the selected cell (H)">
                     <span>Hint</span>
@@ -104,8 +123,16 @@
                 <button type="button" class="num erase" data-number="0" aria-label="Erase"><span class="digit">⌫</span><span class="sub">Erase</span></button>
             </div>
 
-            <p id="message" class="message" role="status">Select an empty cell to begin.</p>
-            <p class="keys">Arrows move · 1–9 enter · N notes · U undo · P pause</p>
+            <button type="button" id="undoPad" class="undo-pad" title="Undo the last move (U)">
+                <span class="undo-icon" aria-hidden="true">↩</span>
+                <span class="undo-copy">
+                    <strong>Undo</strong>
+                    <small id="undoPadHint">Step back and try another idea</small>
+                </span>
+            </button>
+
+            <p id="message" class="message" role="status">Enter your name to deal the first puzzle.</p>
+            <p class="keys">Arrows move · 1–9 enter · N notes · U undo · Ctrl+Z undo · P pause</p>
 
             <noscript>
                 <p class="noscript">Turn on JavaScript to play this Sudoku game.</p>
@@ -114,13 +141,41 @@
     </main>
 
     <div id="overlay" class="overlay" hidden>
-        <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="overlayTitle">
-            <p class="eyebrow" id="overlayKicker"></p>
-            <h2 id="overlayTitle"></h2>
-            <p id="overlayText"></p>
-            <div class="overlay-actions">
-                <button type="button" id="overlayPrimary" class="btn primary"></button>
-                <button type="button" id="overlaySecondary" class="btn ghost" hidden></button>
+        <div class="dialog" id="dialog" role="dialog" aria-modal="true" aria-labelledby="overlayTitle">
+            <div class="congrats-hero" id="congratsHero" hidden>
+                <div class="win-badge" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="36" height="36">
+                        <path fill="currentColor" d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/>
+                    </svg>
+                </div>
+                <p class="hero-kicker">Puzzle complete</p>
+                <h2 id="heroTitle">Congratulations</h2>
+                <p class="hero-name" id="heroName"></p>
+            </div>
+            <div class="dialog-body">
+                <p class="eyebrow" id="overlayKicker"></p>
+                <h2 id="overlayTitle"></h2>
+                <p id="overlayText"></p>
+                <div id="ignField" class="gate-fields" hidden>
+                    <label class="field" for="ignInput">
+                        <span>In-game name</span>
+                        <input id="ignInput" type="text" maxlength="16" autocomplete="nickname" enterkeyhint="done" placeholder="Enter your IGN" required>
+                    </label>
+                    <label class="field" for="gateDifficulty">
+                        <span>Difficulty</span>
+                        <select id="gateDifficulty">
+                            <option value="easy">Easy</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="hard">Hard</option>
+                        </select>
+                    </label>
+                    <small id="ignError" class="ign-error" role="alert"></small>
+                </div>
+                <div id="winStats" class="win-stats" hidden></div>
+                <div class="overlay-actions">
+                    <button type="button" id="overlayPrimary" class="btn primary"></button>
+                    <button type="button" id="overlaySecondary" class="btn ghost" hidden></button>
+                </div>
             </div>
         </div>
     </div>
