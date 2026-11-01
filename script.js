@@ -15,7 +15,7 @@
     let revealed = blank(false);
     let history = [];
     let selectedCell = -1;
-    let mistakes = 0;
+    let lives = 3;
     let hintsLeft = 3;
     let seconds = 0;
     let notesMode = false;
@@ -534,10 +534,8 @@
 
     function updateChrome() {
         timerElement.textContent = formatTime(seconds);
-        livesElement.querySelectorAll("span").forEach((dot, index) => {
-            dot.classList.toggle("spent", index < mistakes);
-        });
-        livesElement.setAttribute("aria-label", `${Math.max(0, 3 - mistakes)} lives remaining`);
+        livesElement.textContent = String(lives);
+        livesElement.setAttribute("aria-label", `${lives} ${lives === 1 ? "life" : "lives"} remaining`);
 
         const best = readBest(activeDifficulty);
         bestLabel.textContent = "Best";
@@ -597,7 +595,7 @@
         history.push({
             puzzle: puzzle.map((row) => row.slice()),
             notes: notes.map((row) => row.slice()),
-            mistakes,
+            lives,
             hintsLeft,
             selected: selectedCell
         });
@@ -651,7 +649,7 @@
         const items = [
             ["Time", formatTime(seconds)],
             ["Level", LEVEL_NAME[activeDifficulty] || activeDifficulty],
-            ["Lives", String(Math.max(0, 3 - mistakes))]
+            ["Lives", String(lives)]
         ];
 
         items.forEach(([label, value]) => {
@@ -814,14 +812,14 @@
         notes = blank(0);
         revealed = blank(false);
         history = [];
-        mistakes = 0;
+        lives = 3;
         hintsLeft = 3;
         seconds = 0;
         notesMode = false;
         selectedCell = findNextEmpty(0);
         status = "playing";
         paintAll();
-        setMessage("Select a cell, then enter a digit. Use Undo any time you want to rethink.");
+        setMessage("A wrong digit costs 1 life. Finishing a 3×3 square adds 3. Undo can give a life back.");
         startTimer();
     }
 
@@ -864,11 +862,13 @@
             return;
         }
 
+        const lifeBack = previous.lives > lives;
         puzzle = previous.puzzle;
         notes = previous.notes;
-        mistakes = previous.mistakes;
+        lives = previous.lives;
         hintsLeft = previous.hintsLeft;
         selectedCell = previous.selected;
+        lockClues();
 
         if (status === "lost") {
             status = "playing";
@@ -877,7 +877,7 @@
         }
 
         paintAll();
-        setMessage("Undone. Take another look.");
+        setMessage(lifeBack ? "Undone. That life is back." : "Undone. Take another look.");
     }
 
     function win() {
@@ -913,7 +913,7 @@
         showOverlay({
             kicker: "No lives left",
             title: "Out of lives",
-            text: "Three wrong digits closes the round. Study the finished grid, or deal a new one.",
+            text: "No lives left, so this round is over. Undo the last mistake to get that life back, or deal a new puzzle.",
             primary: "New game",
             secondary: "Show solution",
             onPrimary: requestGame,
@@ -965,6 +965,7 @@
         if (countDigit(number) >= 9) stripAllNotes(number);
         else stripPeerNotes(row, col, number);
 
+        const gained = awardSquare(row, col);
         const next = findNextEmpty(index + 1);
         if (next >= 0) selectedCell = next;
         paintAll();
@@ -975,10 +976,44 @@
             return;
         }
 
-        setMessage(hintsLeft === 1 ? "Hint added. 1 hint left." : `Hint added. ${hintsLeft} hints left.`);
+        const hintLeft = hintsLeft === 1 ? "Hint added. 1 hint left." : `Hint added. ${hintsLeft} hints left.`;
+        setMessage(gained ? `${hintLeft} That square is complete, so you gained 3 lives.` : hintLeft);
+    }
+
+    function lockClues() {
+        for (let row = 0; row < 9; row++) {
+            for (let col = 0; col < 9; col++) {
+                if (fixed[row][col]) puzzle[row][col] = solution[row][col];
+            }
+        }
+    }
+
+    function squareComplete(row, col) {
+        const boxRow = Math.floor(row / 3) * 3;
+        const boxCol = Math.floor(col / 3) * 3;
+
+        for (let r = 0; r < 3; r++) {
+            for (let c = 0; c < 3; c++) {
+                const value = puzzle[boxRow + r][boxCol + c];
+                if (!value || value !== solution[boxRow + r][boxCol + c]) return false;
+            }
+        }
+
+        return true;
+    }
+
+    function awardSquare(row, col) {
+        if (!squareComplete(row, col)) return false;
+        lives += 3;
+        return true;
     }
 
     function erase(row, col) {
+        if (fixed[row][col]) {
+            setMessage("That clue is locked.");
+            return;
+        }
+
         if (puzzle[row][col] === 0 && notes[row][col] === 0) {
             setMessage("That cell is already empty.");
             return;
@@ -1007,21 +1042,27 @@
             return;
         }
 
+        if (fixed[row][col]) {
+            setMessage("That clue is locked.");
+            return;
+        }
+
         if (number !== solution[row][col]) {
             remember();
-            mistakes += 1;
+            lives -= 1;
             flash(row, col);
             updateChrome();
 
-            if (mistakes >= 3) {
+            if (lives <= 0) {
+                lives = 0;
+                updateChrome();
                 lose();
                 return;
             }
 
-            const left = 3 - mistakes;
-            setMessage(left === 1
+            setMessage(lives === 1
                 ? "That digit doesn't fit. One life left."
-                : `That digit doesn't fit. ${left} lives left.`);
+                : `That digit doesn't fit. ${lives} lives left.`);
             return;
         }
 
@@ -1033,6 +1074,7 @@
         if (countDigit(number) >= 9) stripAllNotes(number);
         else stripPeerNotes(row, col, number);
 
+        const gained = awardSquare(row, col);
         const next = findNextEmpty(index + 1);
         if (next >= 0) selectedCell = next;
         paintAll();
@@ -1040,6 +1082,11 @@
 
         if (isSolved()) {
             win();
+            return;
+        }
+
+        if (gained) {
+            setMessage("Square complete. You gained 3 lives.");
             return;
         }
 

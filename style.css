@@ -251,28 +251,6 @@ button:disabled {
     font-variant-numeric: tabular-nums;
 }
 
-.lives {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-    justify-content: center;
-    min-height: 28px;
-    margin-top: 4px;
-}
-
-.lives span {
-    width: 11px;
-    height: 11px;
-    border-radius: 50%;
-    background: var(--primary);
-    box-shadow: 0 0 0 3px rgba(196, 73, 44, 0.12);
-}
-
-.lives span.spent {
-    background: transparent;
-    box-shadow: inset 0 0 0 1.5px #bdbdbd;
-}
-
 .field {
     display: flex;
     flex-direction: column;
